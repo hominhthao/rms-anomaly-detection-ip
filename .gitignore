@@ -1,0 +1,4 @@
+*.vcd
+sim/acc_check
+sim/squaring
+accumulator
