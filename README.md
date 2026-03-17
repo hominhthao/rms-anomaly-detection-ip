@@ -59,3 +59,17 @@ Accumulates 16 samples per window. `valid_out` pulses for 1 cycle when window is
 | shift_avg (÷16) | 🔄 | ⬜ | ⬜ |
 | FSM controller | 🔄 | ⬜ | ⬜ |
 | Top-level integration | ⬜ | ⬜ | ⬜ |
+
+## Simulation Waveforms
+
+### Squaring Unit
+![Squaring Unit Waveform](img/waveform_squaring_unit.png)
+- Input `+5` → Output `25` ✅
+- Input `-5` → Output `25` ✅ (signed handled correctly)
+- Input `+200` → Output `40000` ✅
+
+### Accumulator
+![Accumulator Waveform](img/waveform_accmulator.png)
+- 16 samples × 100 → `data_out = 1600` ✅
+- `valid_out` pulses high for 1 cycle after every 16 samples ✅
+- Active-low reset clears all registers correctly ✅
