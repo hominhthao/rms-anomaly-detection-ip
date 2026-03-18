@@ -7,19 +7,17 @@ on Intel Cyclone IV/V.
 ---
 
 ## Architecture
+```mermaid
+graph LR
+    A["data_in [15:0] signed"] --> B["squaring_unit\n(x²)"]
+    B -->|"sq [31:0]"| C["accumulator\n(Σ 16 samples)"]
+    C -->|"sum [35:0]"| D["shift_avg\n(>> 4)"]
+    D -->|"avg [31:0]"| E["comparator\n(> threshold)"]
+    E --> F["anomaly_flag"]
+    C -->|"valid_out"| D
+    D -->|"valid_out"| E
+    E -->|"valid_out"| G["output valid"]
 ```
-data_in [15:0] (signed)
-      │
-      ▼
-┌──────────────┐  sq [31:0]   ┌─────────────┐  sum [35:0]   ┌───────────┐  avg [31:0]   ┌────────────┐
-│ squaring_    │─────────────▶│ accumulator │──────────────▶│ shift_avg │──────────────▶│ comparator │──▶ anomaly_flag
-│ unit (x²)   │              │ (Σ 16 samples)│              │ (>> 4)    │              │ (> threshold)│
-└──────────────┘              └─────────────┘               └───────────┘              └────────────┘
-                                    │                               │                        │
-                               valid_out                       valid_out                valid_out
-                           (pulse per window)
-```
-
 ---
 
 ## Modules
