@@ -5,3 +5,14 @@ accumulator
 .DS_Store
 .DS_Store
 .DS_Store
+
+# Simulation binaries
+sim/comparator
+sim/shift_check
+sim/shift_sim
+sim/top_check
+sim/top_sim
+sim/acc_check
+sim/squaring
+accumulator
+shift_check
