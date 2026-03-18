@@ -142,6 +142,33 @@ rms-anomaly-detection-ip/
 ![RMS Top](img/waveform_rms_top.png)
 
 ---
+## Synthesis Results (Gowin GW1N-1)
+
+### Resource Usage
+
+| Resource | Usage | Total | Utilization |
+|----------|-------|-------|-------------|
+| LUT | 177 | 1152 | 15% |
+| ALU | 528 | 1152 | — |
+| Logic (LUT+ALU) | 707 | 1152 | 62% |
+| Register | 73 | 945 | 8% |
+
+### Timing
+
+| Constraint | Actual Fmax | Slack | Critical Path |
+|------------|-------------|-------|---------------|
+| 50 MHz | **120.535 MHz** | +11.704 ns ✅ | accumulator_0 → accumulator_35 |
+
+> Design achieves **2.4× timing margin** over 50 MHz constraint.
+> `shift_avg` module optimized to zero logic (wire routing only).
+
+### Waveforms & Reports
+
+![Resource Usage](img/synthesis_resource.png)
+![Timing Report](img/synthesis_timing.png)
+![RTL Schematic](img/synthesis_schematic.png)
+
+---
 
 ## Module Status
 
