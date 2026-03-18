@@ -164,9 +164,16 @@ rms-anomaly-detection-ip/
 
 ### Waveforms & Reports
 
+#### Resource Usage
 ![Resource Usage](img/synthesis_resource.png)
+
+#### Timing Report
 ![Timing Report](img/synthesis_timing.png)
+
+#### RTL Schematic — Pipeline (squaring → accumulator → shift_avg)
 ![Pipeline Schematic](img/synthesis_schematic_pipeline.png)
+
+#### RTL Schematic — Comparator
 ![Comparator Schematic](img/synthesis_schematic_comparator.png)
 
 ---
