@@ -1,0 +1,54 @@
+#! /opt/homebrew/Cellar/icarus-verilog/12.0/bin/vvp
+:ivl_version "12.0 (stable)";
+:ivl_delay_selection "TYPICAL";
+:vpi_time_precision - 12;
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/system.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/vhdl_sys.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/vhdl_textio.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/v2005_math.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/va_math.vpi";
+S_0x13f604c90 .scope module, "tb_shift_avg" "tb_shift_avg" 2 3;
+ .timescale -9 -12;
+v0x6000002f4750_0 .var "data_in", 35 0;
+v0x6000002f47e0_0 .net "data_out", 31 0, L_0x6000001f0140;  1 drivers
+v0x6000002f4870_0 .var "valid_in", 0 0;
+v0x6000002f4900_0 .net "valid_out", 0 0, L_0x600001bf0310;  1 drivers
+S_0x13f605b30 .scope module, "uut" "shift_avg" 2 11, 3 1 0, S_0x13f604c90;
+ .timescale 0 0;
+    .port_info 0 /INPUT 36 "data_in";
+    .port_info 1 /INPUT 1 "valid_in";
+    .port_info 2 /OUTPUT 32 "data_out";
+    .port_info 3 /OUTPUT 1 "valid_out";
+L_0x600001bf0310 .functor BUFZ 1, v0x6000002f4870_0, C4<0>, C4<0>, C4<0>;
+v0x6000002f42d0_0 .net *"_ivl_0", 35 0, L_0x6000001f00a0;  1 drivers
+v0x6000002f43f0_0 .net *"_ivl_2", 31 0, L_0x6000001f0000;  1 drivers
+L_0x140078010 .functor BUFT 1, C4<0000>, C4<0>, C4<0>, C4<0>;
+v0x6000002f4480_0 .net *"_ivl_4", 3 0, L_0x140078010;  1 drivers
+v0x6000002f4510_0 .net "data_in", 35 0, v0x6000002f4750_0;  1 drivers
+v0x6000002f45a0_0 .net "data_out", 31 0, L_0x6000001f0140;  alias, 1 drivers
+v0x6000002f4630_0 .net "valid_in", 0 0, v0x6000002f4870_0;  1 drivers
+v0x6000002f46c0_0 .net "valid_out", 0 0, L_0x600001bf0310;  alias, 1 drivers
+L_0x6000001f0000 .part v0x6000002f4750_0, 4, 32;
+L_0x6000001f00a0 .concat [ 32 4 0 0], L_0x6000001f0000, L_0x140078010;
+L_0x6000001f0140 .part L_0x6000001f00a0, 0, 32;
+    .scope S_0x13f604c90;
+T_0 ;
+    %vpi_call 2 14 "$dumpfile", "wave.vcd" {0 0 0};
+    %vpi_call 2 15 "$dumpvars", 32'sb00000000000000000000000000000000, S_0x13f604c90 {0 0 0};
+    %delay 10000, 0;
+    %pushi/vec4 1600, 0, 36;
+    %store/vec4 v0x6000002f4750_0, 0, 36;
+    %delay 10000, 0;
+    %pushi/vec4 1, 0, 1;
+    %store/vec4 v0x6000002f4870_0, 0, 1;
+    %delay 1000, 0;
+    %vpi_call 2 20 "$display", "data_out = %0d (expected 100)", v0x6000002f47e0_0 {0 0 0};
+    %vpi_call 2 22 "$finish" {0 0 0};
+    %end;
+    .thread T_0;
+# The file index is used to find the file name in the following table.
+:file_names 4;
+    "N/A";
+    "<interactive>";
+    "tb/tb_shift_avg.v";
+    "src/shift_avg.v";

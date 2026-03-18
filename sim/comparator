@@ -1,0 +1,37 @@
+#! /opt/homebrew/Cellar/icarus-verilog/12.0/bin/vvp
+:ivl_version "12.0 (stable)";
+:ivl_delay_selection "TYPICAL";
+:vpi_time_precision + 0;
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/system.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/vhdl_sys.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/vhdl_textio.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/v2005_math.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/va_math.vpi";
+S_0x125f043d0 .scope module, "comparator" "comparator" 2 1;
+ .timescale 0 0;
+    .port_info 0 /INPUT 32 "data_in";
+    .port_info 1 /INPUT 1 "valid_in";
+    .port_info 2 /OUTPUT 1 "anomaly_flag";
+    .port_info 3 /OUTPUT 1 "valid_out";
+P_0x6000010dc540 .param/l "THRESHOLD" 0 2 1, +C4<00000000000001111010000100100000>;
+o0x128040130 .functor BUFZ 1, C4<z>; HiZ drive
+L_0x600002ed82a0 .functor BUFZ 1, o0x128040130, C4<0>, C4<0>, C4<0>;
+L_0x128078010 .functor BUFT 1, C4<00000000000001111010000100100000>, C4<0>, C4<0>, C4<0>;
+v0x6000037d8510_0 .net/2u *"_ivl_0", 31 0, L_0x128078010;  1 drivers
+v0x6000037d85a0_0 .net *"_ivl_2", 0 0, L_0x6000034d8000;  1 drivers
+L_0x128078058 .functor BUFT 1, C4<1>, C4<0>, C4<0>, C4<0>;
+v0x6000037d8630_0 .net/2u *"_ivl_4", 0 0, L_0x128078058;  1 drivers
+L_0x1280780a0 .functor BUFT 1, C4<0>, C4<0>, C4<0>, C4<0>;
+v0x6000037d86c0_0 .net/2u *"_ivl_6", 0 0, L_0x1280780a0;  1 drivers
+v0x6000037d8750_0 .net "anomaly_flag", 0 0, L_0x6000034d80a0;  1 drivers
+o0x128040100 .functor BUFZ 32, C4<zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz>; HiZ drive
+v0x6000037d87e0_0 .net "data_in", 31 0, o0x128040100;  0 drivers
+v0x6000037d8870_0 .net "valid_in", 0 0, o0x128040130;  0 drivers
+v0x6000037d8900_0 .net "valid_out", 0 0, L_0x600002ed82a0;  1 drivers
+L_0x6000034d8000 .cmp/gt 32, o0x128040100, L_0x128078010;
+L_0x6000034d80a0 .functor MUXZ 1, L_0x1280780a0, L_0x128078058, L_0x6000034d8000, C4<>;
+# The file index is used to find the file name in the following table.
+:file_names 3;
+    "N/A";
+    "<interactive>";
+    "src/comparator.v";

@@ -1,0 +1,167 @@
+#! /opt/homebrew/Cellar/icarus-verilog/12.0/bin/vvp
+:ivl_version "12.0 (stable)";
+:ivl_delay_selection "TYPICAL";
+:vpi_time_precision + 0;
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/system.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/vhdl_sys.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/vhdl_textio.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/v2005_math.vpi";
+:vpi_module "/opt/homebrew/Cellar/icarus-verilog/12.0/lib/ivl/va_math.vpi";
+S_0x12de04800 .scope module, "rms_top" "rms_top" 2 1;
+ .timescale 0 0;
+    .port_info 0 /INPUT 1 "clk";
+    .port_info 1 /INPUT 1 "rst_n";
+    .port_info 2 /INPUT 16 "data_in";
+    .port_info 3 /INPUT 1 "valid_in";
+    .port_info 4 /OUTPUT 32 "avg_out";
+    .port_info 5 /OUTPUT 1 "valid_out";
+    .port_info 6 /OUTPUT 1 "anomaly_flag";
+L_0x600003864930 .functor BUFZ 32, L_0x6000022643c0, C4<00000000000000000000000000000000>, C4<00000000000000000000000000000000>, C4<00000000000000000000000000000000>;
+v0x600002165e60_0 .net "acc_to_shift", 35 0, v0x600002165170_0;  1 drivers
+v0x600002165ef0_0 .net "acc_valid", 0 0, v0x600002165320_0;  1 drivers
+v0x600002165f80_0 .net "anomaly_flag", 0 0, L_0x600002264500;  1 drivers
+v0x600002166010_0 .net "avg_out", 31 0, L_0x600003864930;  1 drivers
+o0x130040040 .functor BUFZ 1, C4<z>; HiZ drive
+v0x6000021660a0_0 .net "clk", 0 0, o0x130040040;  0 drivers
+o0x1300406a0 .functor BUFZ 16, C4<zzzzzzzzzzzzzzzz>; HiZ drive
+v0x600002166130_0 .net/s "data_in", 15 0, o0x1300406a0;  0 drivers
+o0x130040100 .functor BUFZ 1, C4<z>; HiZ drive
+v0x6000021661c0_0 .net "rst_n", 0 0, o0x130040100;  0 drivers
+v0x600002166250_0 .net "shift_data", 31 0, L_0x6000022643c0;  1 drivers
+v0x6000021662e0_0 .net "shift_valid", 0 0, L_0x6000038649a0;  1 drivers
+v0x600002166370_0 .net "sq_to_acc", 31 0, L_0x6000022641e0;  1 drivers
+o0x130040130 .functor BUFZ 1, C4<z>; HiZ drive
+v0x600002166400_0 .net "valid_in", 0 0, o0x130040130;  0 drivers
+v0x600002166490_0 .net "valid_out", 0 0, L_0x600003864a10;  1 drivers
+S_0x12df09870 .scope module, "uut_acc" "accumulator" 2 25, 3 1 0, S_0x12de04800;
+ .timescale 0 0;
+    .port_info 0 /INPUT 1 "clk";
+    .port_info 1 /INPUT 1 "rst_n";
+    .port_info 2 /INPUT 32 "data_in";
+    .port_info 3 /INPUT 1 "valid_in";
+    .port_info 4 /OUTPUT 36 "data_out";
+    .port_info 5 /OUTPUT 1 "valid_out";
+v0x600002164f30_0 .var "accumulator", 35 0;
+v0x600002164fc0_0 .net "clk", 0 0, o0x130040040;  alias, 0 drivers
+v0x600002165050_0 .var "counter", 3 0;
+v0x6000021650e0_0 .net "data_in", 31 0, L_0x6000022641e0;  alias, 1 drivers
+v0x600002165170_0 .var "data_out", 35 0;
+v0x600002165200_0 .net "rst_n", 0 0, o0x130040100;  alias, 0 drivers
+v0x600002165290_0 .net "valid_in", 0 0, o0x130040130;  alias, 0 drivers
+v0x600002165320_0 .var "valid_out", 0 0;
+E_0x6000006605c0 .event posedge, v0x600002164fc0_0;
+S_0x12df043d0 .scope module, "uut_com" "comparator" 2 31, 4 1 0, S_0x12de04800;
+ .timescale 0 0;
+    .port_info 0 /INPUT 32 "data_in";
+    .port_info 1 /INPUT 1 "valid_in";
+    .port_info 2 /OUTPUT 1 "anomaly_flag";
+    .port_info 3 /OUTPUT 1 "valid_out";
+P_0x6000006618c0 .param/l "THRESHOLD" 0 4 1, +C4<00000000000001111010000100100000>;
+L_0x600003864a10 .functor BUFZ 1, L_0x6000038649a0, C4<0>, C4<0>, C4<0>;
+L_0x130078058 .functor BUFT 1, C4<00000000000001111010000100100000>, C4<0>, C4<0>, C4<0>;
+v0x6000021653b0_0 .net/2u *"_ivl_0", 31 0, L_0x130078058;  1 drivers
+v0x600002165440_0 .net *"_ivl_2", 0 0, L_0x600002264460;  1 drivers
+L_0x1300780a0 .functor BUFT 1, C4<1>, C4<0>, C4<0>, C4<0>;
+v0x6000021654d0_0 .net/2u *"_ivl_4", 0 0, L_0x1300780a0;  1 drivers
+L_0x1300780e8 .functor BUFT 1, C4<0>, C4<0>, C4<0>, C4<0>;
+v0x600002165560_0 .net/2u *"_ivl_6", 0 0, L_0x1300780e8;  1 drivers
+v0x6000021655f0_0 .net "anomaly_flag", 0 0, L_0x600002264500;  alias, 1 drivers
+v0x600002165680_0 .net "data_in", 31 0, L_0x6000022643c0;  alias, 1 drivers
+v0x600002165710_0 .net "valid_in", 0 0, L_0x6000038649a0;  alias, 1 drivers
+v0x6000021657a0_0 .net "valid_out", 0 0, L_0x600003864a10;  alias, 1 drivers
+L_0x600002264460 .cmp/gt 32, L_0x6000022643c0, L_0x130078058;
+L_0x600002264500 .functor MUXZ 1, L_0x1300780e8, L_0x1300780a0, L_0x600002264460, C4<>;
+S_0x12df04540 .scope module, "uut_shift" "shift_avg" 2 28, 5 1 0, S_0x12de04800;
+ .timescale 0 0;
+    .port_info 0 /INPUT 36 "data_in";
+    .port_info 1 /INPUT 1 "valid_in";
+    .port_info 2 /OUTPUT 32 "data_out";
+    .port_info 3 /OUTPUT 1 "valid_out";
+L_0x6000038649a0 .functor BUFZ 1, v0x600002165320_0, C4<0>, C4<0>, C4<0>;
+v0x600002165830_0 .net *"_ivl_0", 35 0, L_0x600002264320;  1 drivers
+v0x6000021658c0_0 .net *"_ivl_2", 31 0, L_0x600002264280;  1 drivers
+L_0x130078010 .functor BUFT 1, C4<0000>, C4<0>, C4<0>, C4<0>;
+v0x600002165950_0 .net *"_ivl_4", 3 0, L_0x130078010;  1 drivers
+v0x6000021659e0_0 .net "data_in", 35 0, v0x600002165170_0;  alias, 1 drivers
+v0x600002165a70_0 .net "data_out", 31 0, L_0x6000022643c0;  alias, 1 drivers
+v0x600002165b00_0 .net "valid_in", 0 0, v0x600002165320_0;  alias, 1 drivers
+v0x600002165b90_0 .net "valid_out", 0 0, L_0x6000038649a0;  alias, 1 drivers
+L_0x600002264280 .part v0x600002165170_0, 4, 32;
+L_0x600002264320 .concat [ 32 4 0 0], L_0x600002264280, L_0x130078010;
+L_0x6000022643c0 .part L_0x600002264320, 0, 32;
+S_0x12df046b0 .scope module, "uut_squ" "squaring_unit" 2 22, 6 1 0, S_0x12de04800;
+ .timescale 0 0;
+    .port_info 0 /INPUT 16 "data_in";
+    .port_info 1 /OUTPUT 32 "data_out";
+v0x600002165c20_0 .net/s *"_ivl_0", 31 0, L_0x6000022640a0;  1 drivers
+v0x600002165cb0_0 .net/s *"_ivl_2", 31 0, L_0x600002264140;  1 drivers
+v0x600002165d40_0 .net/s "data_in", 15 0, o0x1300406a0;  alias, 0 drivers
+v0x600002165dd0_0 .net "data_out", 31 0, L_0x6000022641e0;  alias, 1 drivers
+L_0x6000022640a0 .extend/s 32, o0x1300406a0;
+L_0x600002264140 .extend/s 32, o0x1300406a0;
+L_0x6000022641e0 .arith/mult 32, L_0x6000022640a0, L_0x600002264140;
+    .scope S_0x12df09870;
+T_0 ;
+    %wait E_0x6000006605c0;
+    %load/vec4 v0x600002165200_0;
+    %nor/r;
+    %flag_set/vec4 8;
+    %jmp/0xz  T_0.0, 8;
+    %pushi/vec4 0, 0, 4;
+    %assign/vec4 v0x600002165050_0, 0;
+    %pushi/vec4 0, 0, 36;
+    %assign/vec4 v0x600002165170_0, 0;
+    %pushi/vec4 0, 0, 36;
+    %assign/vec4 v0x600002164f30_0, 0;
+    %pushi/vec4 0, 0, 1;
+    %assign/vec4 v0x600002165320_0, 0;
+    %jmp T_0.1;
+T_0.0 ;
+    %load/vec4 v0x600002165290_0;
+    %cmpi/e 1, 0, 1;
+    %jmp/0xz  T_0.2, 4;
+    %load/vec4 v0x600002165050_0;
+    %pad/u 32;
+    %cmpi/e 15, 0, 32;
+    %jmp/0xz  T_0.4, 4;
+    %pushi/vec4 0, 0, 4;
+    %assign/vec4 v0x600002165050_0, 0;
+    %pushi/vec4 1, 0, 1;
+    %assign/vec4 v0x600002165320_0, 0;
+    %load/vec4 v0x600002164f30_0;
+    %load/vec4 v0x6000021650e0_0;
+    %pad/u 36;
+    %add;
+    %assign/vec4 v0x600002165170_0, 0;
+    %pushi/vec4 0, 0, 36;
+    %assign/vec4 v0x600002164f30_0, 0;
+    %jmp T_0.5;
+T_0.4 ;
+    %load/vec4 v0x6000021650e0_0;
+    %pad/u 36;
+    %load/vec4 v0x600002164f30_0;
+    %add;
+    %assign/vec4 v0x600002164f30_0, 0;
+    %load/vec4 v0x600002165050_0;
+    %addi 1, 0, 4;
+    %assign/vec4 v0x600002165050_0, 0;
+    %pushi/vec4 0, 0, 1;
+    %assign/vec4 v0x600002165320_0, 0;
+T_0.5 ;
+    %jmp T_0.3;
+T_0.2 ;
+    %pushi/vec4 0, 0, 1;
+    %assign/vec4 v0x600002165320_0, 0;
+T_0.3 ;
+T_0.1 ;
+    %jmp T_0;
+    .thread T_0;
+# The file index is used to find the file name in the following table.
+:file_names 7;
+    "N/A";
+    "<interactive>";
+    "src/rms_top.v";
+    "src/accumulator.v";
+    "src/comparator.v";
+    "src/shift_avg.v";
+    "src/squaring_unit.v";
