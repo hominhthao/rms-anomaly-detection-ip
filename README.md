@@ -166,7 +166,8 @@ rms-anomaly-detection-ip/
 
 ![Resource Usage](img/synthesis_resource.png)
 ![Timing Report](img/synthesis_timing.png)
-![RTL Schematic](img/synthesis_schematic.png)
+![Pipeline Schematic](img/synthesis_schematic_pipeline.png)
+![Comparator Schematic](img/synthesis_schematic_comparator.png)
 
 ---
 
