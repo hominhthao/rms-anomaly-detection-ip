@@ -259,7 +259,7 @@ produce `25`. Critical for accelerometer data which is always AC-coupled
 wrong results for negative samples.
 
 #### Accumulator
-![Accumulator Waveform](img/waveform_accmulator.png)
+![Accumulator Waveform](img/waveform_accumulator.png)
 
 Confirms `valid_out` pulses exactly once per 16-sample window, 
 and reset clears accumulator mid-window without producing a spurious 
