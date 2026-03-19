@@ -214,6 +214,18 @@ At Fs = 5kHz:
 > No DSP blocks consumed — multiplier inferred as LUT-based 
 > (acceptable for 16×16 on small FPGA).
 
+### Resource Usage
+![Resource Usage](img/synthesis_resource.png)
+
+### Timing Report
+![Timing Report](img/synthesis_timing.png)
+
+### RTL Schematic — Full Pipeline
+![Pipeline Schematic](img/synthesis_schematic_pipeline.png)
+
+### RTL Schematic — Comparator
+![Comparator Schematic](img/synthesis_schematic_comparator.png)
+
 ### Top-Level Interface
 ```verilog
 module rms_top (
