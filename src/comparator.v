@@ -1,4 +1,4 @@
-module comparator #(parameter THRESHOLD = 500000) (
+module comparator #(parameter THRESHOLD = 1200000) (
 
 input wire [31:0] data_in, // avg_out từ shift_avg
 input wire valid_in, // valid_out từ shift_avg
