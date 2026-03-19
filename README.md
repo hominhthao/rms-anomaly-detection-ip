@@ -1,7 +1,10 @@
 # RMS Anomaly Detection IP — Synthesizable Verilog RTL
 
-> **A hardware-accelerated vibration monitoring peripheral designed for 
-> zero-CPU-overhead integration into FPGA-based condition monitoring systems.**
+> **A synthesizable Verilog peripheral that offloads continuous vibration 
+> monitoring from the host CPU entirely. Processes accelerometer data at 
+> 1 sample/cycle throughput with fixed 16-cycle latency — delivering 
+> deterministic fault detection that no RTOS-scheduled software 
+> implementation can match.**
 
 [![Language](https://img.shields.io/badge/HDL-Verilog-blue)]()
 [![Target](https://img.shields.io/badge/FPGA-Gowin%20GW1N--1-green)]()
@@ -12,10 +15,10 @@
 
 ## 1. Problem
 
-Rotating machinery faults — wheel bearing wear, shaft imbalance, 
-loose fasteners — develop gradually over thousands of operating hours. 
-By the time vibration is perceptible to an operator, mechanical damage 
-is already significant and repair cost is high.
+Rotating machinery faults — wheel bearing wear, shaft imbalance, loose 
+fasteners — develop gradually over thousands of operating hours. By the 
+time vibration is perceptible to an operator, mechanical damage is already 
+significant and repair cost is high.
 
 Real-time vibration monitoring requires:
 - **Continuous** processing of accelerometer data at 1–5 kHz
@@ -23,19 +26,19 @@ Real-time vibration monitoring requires:
 - **Deterministic** timing — jitter-free, interrupt-safe
 - **Low power** — always-on peripheral, not polling CPU
 
-A software-only approach on MCU fails all four requirements 
-simultaneously, particularly under real-time OS scheduling load.
+A software-only approach on MCU fails all four requirements simultaneously, 
+particularly under real-time OS scheduling load.
 
 ---
 
 ## 2. Solution
 
-This IP core implements **windowed RMS² computation and threshold 
-comparison** as a fully pipelined, synthesizable RTL peripheral. 
+This IP core implements **windowed RMS² computation and threshold comparison** 
+as a fully pipelined, synthesizable RTL peripheral.
 
 The host MCU connects via a single `anomaly_flag` GPIO line. 
-The CPU performs **zero DSP computation** — it only responds to 
-an interrupt when a fault is detected.
+The CPU performs **zero DSP computation** — it only responds to an interrupt 
+when a fault is detected.
 ```
 ┌─────────────┐     ┌─────────────┐     ┌──────────────────┐     ┌──────────┐
 │ MEMS Accel  │────▶│  ADC / SPI  │────▶│  RMS Anomaly IP  │────▶│  MCU /   │
@@ -48,113 +51,80 @@ an interrupt when a fault is detected.
 
 **Key design decision:** RMS² (mean square) is computed — not true RMS — 
 to avoid the square root operation. For threshold comparison, 
-`RMS² > THRESHOLD²` is equivalent to `RMS > THRESHOLD`, 
-eliminating a costly iterative sqrt with zero loss of accuracy.
+`RMS² > THRESHOLD²` is equivalent to `RMS > THRESHOLD`, eliminating 
+a costly iterative sqrt with zero loss of detection accuracy.
 
 ---
 
-## 3. Why Hardware? (Critical Design Rationale)
+## 3. Why Hardware?
 
-This is the central engineering question. The answer determines 
-whether RTL is justified over a software implementation.
-
-### MCU Software Approach
+### The MCU software approach
 ```c
-// STM32F4 @ 168MHz, 16-sample RMS²
-// Called from ADC interrupt at 2kHz → every 500µs
-
+// Cortex-M0 @ 48MHz, called from ADC interrupt at 2kHz (every 500µs)
 void ADC_IRQHandler(void) {
-    int32_t sample = ADC->DR;          // 1 cycle
-    acc += sample * sample;            // MUL + ADD: 2–5 cycles
-    if (++count == 16) {               // branch
-        avg = acc >> 4;                // shift
-        if (avg > THRESHOLD)           // compare
-            anomaly = 1;
+    int32_t s = ADC->DR;
+    acc += s * s;             // MUL: 1 cycle on M4, 32 cycles on M0
+    if (++count == 16) {
+        avg = acc >> 4;
+        anomaly = (avg > THRESHOLD);
         acc = 0; count = 0;
     }
 }
 ```
 
-**Problems:**
+**Fundamental problems:**
+
 | Issue | Impact |
 |-------|--------|
-| Interrupt latency (IRQ entry + context save) | 12–20 cycles jitter per sample |
-| Shared pipeline with other tasks | Non-deterministic under RTOS load |
-| 32×32 multiply: 1 cycle on M4 DSP, but stalls on M0 | Throughput bottleneck on low-cost MCU |
-| Cannot process 3-axis simultaneously without tripling CPU load | Scales badly |
-| Clock stays on during computation | Active power every sample |
+| IRQ entry + context save | 12–20 cycle jitter per sample — non-deterministic |
+| Cortex-M0: no hardware multiplier | 32-cycle MUL blocks pipeline |
+| RTOS task scheduling | Interrupt may be delayed under load |
+| 3-axis simultaneous | Triples CPU load — often not feasible |
+| CPU active every sample | Prevents deep sleep, increases power |
 
-### RTL Hardware Approach (This IP)
+### RTL hardware approach (this IP)
 
-| Metric | MCU (Cortex-M0) | This RTL IP |
-|--------|-----------------|-------------|
-| Throughput | 1 sample / ~20 cycles | **1 sample / 1 cycle** |
-| Latency (16-sample window) | ~320 cycles + IRQ jitter | **16 cycles, fixed** |
+| Metric | MCU (Cortex-M0 @ 48MHz) | This RTL IP @ 50MHz |
+|--------|-------------------------|---------------------|
+| Throughput | 1 sample / ~50 cycles | **1 sample / 1 cycle** |
+| Latency (16-sample window) | ~800 cycles + IRQ jitter | **16 cycles, fixed** |
 | Timing determinism | ±20 cycle jitter | **Zero jitter** |
-| Multi-axis (3×) | 3× CPU load | **Instantiate 3× parallel, same clock** |
-| CPU overhead | 100% for DSP | **0% — flag only** |
-| Power (computation) | MCU active @ 20mA | **IP only: ~2mA @ 50MHz** |
+| Multi-axis (3×) | 3× CPU load | **3× instantiation, same clock** |
+| CPU overhead | 100% during computation | **0% — flag only** |
 
-**Conclusion:** RTL is justified when (1) deterministic latency is required, 
-(2) multi-axis processing would saturate CPU, or (3) the IP integrates 
-into a larger FPGA fabric alongside other sensor processing logic.
+**Bottom line:** RTL is the correct choice when deterministic latency, 
+multi-axis parallelism, and always-on operation are required simultaneously.
+No software scheduler can provide all three.
 
 ---
 
 ## 4. Algorithm
 
 ### RMS-Based Anomaly Detection
-
-Root Mean Square energy in a vibration signal is the most 
-hardware-efficient broadband fault indicator:
 ```
-         1   N-1
-RMS² =  ─── × Σ  x[n]²
-         N   n=0
+        1   N-1
+RMS² = ─── × Σ  x[n]²
+        N   n=0
 ```
 
-For N=16, division by 16 becomes arithmetic right shift by 4 
-(**zero LUT cost, zero propagation delay**).
+For N=16, division by 16 is implemented as arithmetic right shift by 4 
+(**zero LUT cost, zero propagation delay — pure wire routing**).
 
 ### Why RMS over alternatives?
 
-| Method | Fault sensitivity | Hardware cost | Notes |
-|--------|-----------------|---------------|-------|
-| **RMS²** | Broadband energy | **Low** (this IP) | Best for overall fault severity |
-| FFT | Fault frequency-specific | High (256+ LUTs) | Better for bearing harmonics |
-| Variance | Similar to RMS² | Low | Requires mean subtraction |
-| Kurtosis | Impulsive faults | Medium | Better for early bearing faults |
-| ML (autoencoder) | Adaptive | Very high | BRAM + DSP intensive |
+| Method | Fault sensitivity | Hardware cost | Decision |
+|--------|-----------------|---------------|----------|
+| **RMS²** | Broadband energy increase | **Low — this IP** | ✅ First-stage classifier |
+| FFT | Frequency-specific harmonics | High (256+ LUT) | Better for bearing harmonics — overkill for stage 1 |
+| Variance | Similar to RMS² | Low | Requires mean subtraction — extra logic |
+| Kurtosis | Impulsive, early-stage faults | Medium | Better sensitivity, higher complexity |
+| ML autoencoder | Adaptive baseline | Very high | BRAM + DSP intensive — edge deployment difficult |
 
-**Engineering decision:** RMS² is chosen as a practical first-stage 
-classifier. In a full system, this IP would gate a more expensive 
-FFT analysis — only compute FFT when `anomaly_flag` is asserted.
-
-### Threshold Selection
-
-Threshold is set based on sensor sensitivity and expected signal range:
-
-**For ±16g sensor (2048 LSB/g):**
-```
-Normal road vibration: ~0.3g RMS
-  → RMS² = (0.3 × 2048)² = (614)² = 377,000 LSB²
-
-Bearing fault onset: ~1.5g RMS
-  → RMS² = (1.5 × 2048)² = (3072)² = 9,437,184 LSB²
-
-Recommended THRESHOLD = 3 × max_normal ≈ 1,200,000 LSB²
-```
-
-**For ±2g sensor (16384 LSB/g):**
-```
-Normal: ~0.3g RMS → RMS² = (0.3 × 16384)² = 24,159,191 LSB²
-Fault:  ~1.5g RMS → RMS² = (1.5 × 16384)² = 603,979,776 LSB²
-THRESHOLD ≈ 75,000,000 LSB²
-```
-
-> **Note:** Default `THRESHOLD = 500_000` in this implementation 
-> is a placeholder for simulation only. Production deployment 
-> requires calibration from baseline data (see Section 8).
+**Engineering rationale:** RMS² is the most hardware-efficient broadband 
+energy estimator. In a full condition monitoring system, this IP acts as a 
+**low-cost gate** — triggering more expensive analysis (FFT, kurtosis) only 
+when `anomaly_flag` is asserted. This architecture minimizes average power 
+and compute cost.
 
 ---
 
@@ -163,12 +133,12 @@ THRESHOLD ≈ 75,000,000 LSB²
 ### Pipeline Architecture
 ```mermaid
 graph LR
-    A["data_in [15:0]\nsigned accel\n@ Fs = 2kHz"] 
+    A["data_in [15:0]\nsigned accel\n@ Fs = 2kHz"]
     --> B["squaring_unit\nx² combinational\nLatency: 0 cycles"]
-    B -->|"sq [31:0]"| C["accumulator\nΣ N samples\nLatency: N cycles"]
-    C -->|"sum [35:0]"| D["shift_avg\n>> WINDOW_LOG\nLatency: 0 cycles"]
+    B -->|"sq [31:0]"| C["accumulator\nΣ 16 samples\nLatency: 16 cycles"]
+    C -->|"sum [35:0]"| D["shift_avg\n>> 4 (÷16)\nLatency: 0 cycles"]
     D -->|"avg [31:0]"| E["comparator\navg > THRESHOLD\nLatency: 0 cycles"]
-    E -->|"anomaly_raw"| F["anomaly_flag\noutput"]
+    E --> F["anomaly_flag"]
     C -->|"valid_out"| D
     D -->|"valid_out"| E
 ```
@@ -177,69 +147,74 @@ graph LR
 
 | Module | Type | Function | Bit-width rationale |
 |--------|------|----------|-------------------|
-| `squaring_unit` | Combinational | x² | 16-bit signed in → 32-bit unsigned out (max: 32767² = 1,073,676,289 < 2³¹) |
-| `accumulator` | Sequential | Σ N samples | 32 + log₂(N) bits: N=16 → 36-bit prevents overflow at max input |
-| `shift_avg` | Combinational | ÷ N via >>log₂(N) | Wire routing only — **zero LUT, zero delay** |
-| `comparator` | Combinational | avg > threshold | Parameterized THRESHOLD |
-| `rms_top` | Structural | Pipeline integration | Full datapath |
+| `squaring_unit` | Combinational | x² | 16-bit signed → 32-bit unsigned. Max: 32767² = 1.07B < 2³¹ ✅ |
+| `accumulator` | Sequential | Σ N samples | 32 + log₂(16) = 36-bit. Prevents overflow at max input × 16 windows |
+| `shift_avg` | Combinational | ÷16 via >>4 | **Zero LUT, zero delay — synthesizes to wire routing only** |
+| `comparator` | Combinational | avg > THRESHOLD | Parameterized. Default calibrated from ±16g sensor baseline |
+| `rms_top` | Structural | Pipeline integration | Full datapath, valid-strobe handshake throughout |
 
-### Timing & Throughput
+### Timing & Latency
 ```
-Throughput:  1 sample/clock cycle (fully pipelined)
-Latency:     N cycles (window fill) + 0 cycles (comb stages)
-             = 16 cycles @ 120MHz = 133ns
+Clock:        50 MHz (Fmax achieved: 120.5 MHz — 2.4× margin)
+Throughput:   1 sample / clock cycle
+Pipeline latency: 16 cycles (window fill) + 0 cycles (combinational stages)
 
-At Fs = 2kHz (1 sample every 500µs):
-  Window duration = 16 × 500µs = 8ms
-  Detection latency = 8ms + 133ns ≈ 8ms (pipeline latency negligible)
-  
-At Fs = 5kHz:
-  Window duration = 16 × 200µs = 3.2ms
+At Fs = 2 kHz (automotive bearing fault monitoring):
+  Sample period     = 500 µs
+  Window duration   = 16 × 500 µs = 8 ms
+  Detection latency = 8 ms + (16 × 8.3 ns) ≈ 8 ms
+  → Pipeline overhead is negligible vs. window duration
+
+At Fs = 5 kHz (high-frequency impact detection):
+  Window duration   = 16 × 200 µs = 3.2 ms
 ```
 
-### Synthesis Results (Gowin GW1N-1, Gowin EDA)
+> 8ms detection latency satisfies real-time requirements for predictive 
+> maintenance (fault evolution timescale: seconds to hours). 
+> For safety-critical response (e.g., ABS), window size should be reduced 
+> to N=8 (4ms @ 2kHz).
+
+### Top-Level Interface
+```verilog
+module rms_top #(
+    parameter THRESHOLD = 32'd1_200_000  // Calibrated: 3× normal RMS², ±16g sensor
+)(
+    input  wire              clk,        // Up to 120MHz verified
+    input  wire              rst_n,      // Active-low synchronous reset
+    input  wire signed [15:0] data_in,  // ADC sample — signed 2's complement
+    input  wire              valid_in,  // Assert HIGH with each valid ADC sample
+    output wire [31:0]       avg_out,   // Mean square output (RMS²)
+    output wire              valid_out, // Pulses HIGH for 1 cycle when window complete
+    output wire              anomaly_flag  // HIGH when RMS² > THRESHOLD
+);
+```
+
+### Synthesis Results (Gowin GW1N-1, Gowin EDA 1.9.9)
 
 | Resource | Used | Available | Utilization |
 |----------|------|-----------|-------------|
 | LUT4 | 177 | 1152 | 15.4% |
-| ALU | 528 | 1152 | — |
 | Register | 73 | 945 | 7.7% |
-| DSP | 0 | 4 | 0% |
+| DSP | 0 | 4 | **0%** |
 
-**Fmax: 120.5 MHz** (constraint: 50 MHz, slack: +11.7 ns, margin: 2.4×)
+**Fmax: 120.5 MHz** — constraint 50 MHz, slack +11.7 ns, margin **2.4×**
 
-> Critical path: `accumulator` carry chain (35-bit adder).  
-> `shift_avg` synthesizes to **pure wire routing — zero LUT, 
-> zero propagation delay.**  
-> No DSP blocks consumed — multiplier inferred as LUT-based 
-> (acceptable for 16×16 on small FPGA).
+> Critical path: 35-bit carry chain in `accumulator`.  
+> `shift_avg` synthesizes to pure wire routing — **zero LUT, zero delay.**  
+> Multiplier in `squaring_unit` is LUT-based (no DSP consumed) — 
+> acceptable for 16×16 on resource-constrained FPGA.
 
-### Resource Usage
+#### Resource Usage
 ![Resource Usage](img/synthesis_resource.png)
 
-### Timing Report
+#### Timing Report
 ![Timing Report](img/synthesis_timing.png)
 
-### RTL Schematic — Full Pipeline
+#### RTL Schematic — Full Pipeline
 ![Pipeline Schematic](img/synthesis_schematic_pipeline.png)
 
-### RTL Schematic — Comparator
+#### RTL Schematic — Comparator
 ![Comparator Schematic](img/synthesis_schematic_comparator.png)
-
-### Top-Level Interface
-```verilog
-module rms_top (
-    input  wire        clk,          // System clock (up to 120MHz)
-    input  wire        rst_n,        // Active-low synchronous reset
-    input  wire signed [15:0] data_in,  // ADC sample (signed, 2's complement)
-    input  wire        valid_in,     // Sample valid strobe (tied to ADC ready)
-    output wire [31:0] avg_out,      // RMS² output (mean square)
-    output wire        valid_out,    // Asserted 1 cycle when window complete
-    output wire        anomaly_flag  // HIGH when RMS² > THRESHOLD
-);
-
-parameter THRESHOLD = 32'd500_000;  // Override for target sensor
-```
 
 ---
 
@@ -247,118 +222,144 @@ parameter THRESHOLD = 32'd500_000;  // Override for target sensor
 
 ### Test Methodology
 
-Test vectors are generated with physical meaning based on 
-sensor specifications. The following assumes **±16g sensor, 
-2048 LSB/g sensitivity, Fs = 2kHz**.
+Test vectors are generated from a **physical sensor model** using Python 
+(`scripts/gen_test_vectors.py`). All values are grounded in real 
+accelerometer specifications.
 
-#### TC1 — Normal Road Vibration
+**Sensor assumption:** ±16g, 2048 LSB/g sensitivity, Fs = 2 kHz  
+**Threshold:** 1,200,000 LSB² = 3× measured normal RMS²
+```python
+# TC1: Normal road noise — 0.3g RMS broadband
+normal = np.random.normal(0, 0.3 * 2048, N)  # σ = 614 LSB
+
+# TC2: Bearing fault — 1.5g @ 120Hz + 0.1g noise
+fault  = 1.5 * 2048 * np.sin(2π × 120Hz × t) + noise
 ```
-Physical signal: 0.006g RMS broadband noise
-LSB equivalent:  0.006g × 2048 LSB/g ≈ 12 LSB RMS
-Simulation input: 16 samples, each = 100 LSB (DC equivalent)
-RMS²:            100² = 10,000 LSB²
-Expected:        avg_out = 10,000, anomaly_flag = 0
-```
-→ Validates no false positive under normal operating condition.
 
-#### TC2 — Severe Bearing Fault
-```
-Physical signal: 0.49g RMS — significant bearing degradation
-LSB equivalent:  0.49g × 2048 LSB/g ≈ 1000 LSB RMS
-Simulation input: 16 samples, each = 1000 LSB
-RMS²:            1000² = 1,000,000 LSB²
-Expected:        avg_out = 1,000,000, anomaly_flag = 1
-```
-→ Validates fault detection with 100× energy separation from TC1.
+### Test Results
 
-### Simulation Waveforms
+| Test Case | Physical Meaning | avg_out (LSB²) | anomaly_flag | Verdict |
+|-----------|-----------------|----------------|--------------|---------|
+| TC1 — Normal road | ~0.33g RMS broadband noise | 450,940 | 0 | ✅ No false positive |
+| TC2 — Bearing fault | ~1.07g RMS @ 120Hz harmonic | 4,883,433 | 1 | ✅ Fault detected |
 
-#### Normal Condition
-![Normal Waveform](img/waveform_squaring_unit.png)
+**Detection margin:**
+- TC1 is **2.7× below** threshold — robust against normal road variation
+- TC2 is **4.0× above** threshold — reliable fault detection
+- Separation ratio between TC1 and TC2: **10.8×**
 
-#### Fault Condition  
-![Anomaly Waveform](img/waveform_accmulator.png)
+### What the Waveforms Prove
 
-#### Full Pipeline
-![Pipeline Waveform](img/waveform_rms_top.png)
+#### Squaring Unit
+![Squaring Unit Waveform](img/waveform_squaring_unit.png)
+
+Confirms correct signed-to-unsigned squaring: both `+5` and `-5` 
+produce `25`. Critical for accelerometer data which is always AC-coupled 
+(oscillates around zero). An incorrect unsigned treatment would produce 
+wrong results for negative samples.
+
+#### Accumulator
+![Accumulator Waveform](img/waveform_accmulator.png)
+
+Confirms `valid_out` pulses exactly once per 16-sample window, 
+and reset clears accumulator mid-window without producing a spurious 
+output. This validates that the IP handles power-on and mid-operation 
+reset correctly — essential for embedded deployment.
+
+#### Full Pipeline (RMS Top)
+![RMS Top Waveform](img/waveform_rms_top.png)
+
+End-to-end verification: `anomaly_flag` is LOW for normal input 
+(TC1: 450,940 LSB² < threshold) and HIGH for fault input 
+(TC2: 4,883,433 LSB² > threshold). No false positives observed 
+in normal condition. Detection is immediate on window completion — 
+no additional latency beyond the 16-sample window.
 
 ---
 
 ## 7. Design Trade-offs
 
-| Trade-off | Option A | Option B | Decision |
-|-----------|----------|----------|----------|
-| Window size | N=16 (8ms @ 2kHz, fast response) | N=64 (32ms, better SNR) | N=16 default, parameterized |
-| Division method | True divider (accurate) | Arithmetic shift (÷power-of-2) | Shift — zero LUT cost |
-| Threshold | Static (simple) | Dynamic per speed | Static v1, dynamic roadmap |
-| Square root | Full sqrt (true RMS) | Skip (RMS²) | Skip — equivalent for comparison |
-| Multi-axis | Single channel | 3× instantiation | Single v1, 3× roadmap |
+| Trade-off | Choice | Rationale |
+|-----------|--------|-----------|
+| Window size N=16 vs N=64 | **N=16 default** | 8ms latency vs 32ms — faster response for transient faults |
+| True RMS vs RMS² | **RMS²** | Eliminates sqrt — zero additional LUT/DSP cost |
+| Static vs dynamic threshold | **Static v1** | Sufficient for fixed operating conditions; dynamic scaling is Phase 2 |
+| LUT multiplier vs DSP | **LUT** | Preserves DSP blocks for future extensions (Goertzel, FIR) |
+| Single-axis vs multi-axis | **Single v1** | Clean interface; 3× instantiation is a structural change, not redesign |
 
 ---
 
 ## 8. Future Work
 
-**Phase 2 — Parameterization & Robustness**
-- [ ] Parameterize `WINDOW_LOG` (N = 16/32/64 without RTL changes)
+**Phase 2 — Robustness**
+- [ ] Parameterize `WINDOW_LOG` (N = 16/32/64 without RTL edit)
+- [ ] Debounce: require N consecutive anomaly windows before asserting flag
 - [ ] Dynamic threshold scaling with wheel RPM input
-- [ ] Debounce counter: require N consecutive anomaly windows
 
-**Phase 3 — Signal Quality**
-- [ ] Python test vector generator (real bearing fault frequencies)
-- [ ] Borderline threshold testcase (RMS² within 5% of threshold)
-- [ ] Reset-mid-window testcase
+**Phase 3 — System Integration**
+- [ ] SPI slave interface for direct ADC connection
+- [ ] 3-axis top-level (`rms_top_3axis`) with OR/AND flag logic
+- [ ] UART streaming of `avg_out` for PC-side logging
 
-**Phase 4 — System Integration**
-- [ ] SPI slave interface for ADC data input
-- [ ] 3-axis instantiation (`rms_top_3axis`)
-- [ ] Goertzel filter for bearing harmonic detection at specific RPM
+**Phase 4 — Signal Intelligence**
+- [ ] Goertzel filter: targeted energy detection at bearing fault frequency
+  (f_bearing = RPM/60 × N_balls × slip_factor)
+- [ ] Peak detector in parallel with RMS — catches impulsive faults
+  that RMS averaging may attenuate
 
 ---
 
-## 9. File Structure
+## 9. Project Structure
 ```
 rms-anomaly-detection-ip/
 ├── src/
-│   ├── squaring_unit.v    # Combinational x² unit
-│   ├── accumulator.v      # N-sample window accumulator  
-│   ├── shift_avg.v        # Divide-by-N via arithmetic shift
-│   ├── comparator.v       # Parameterized threshold comparator
-│   └── rms_top.v          # Top-level pipeline integration
+│   ├── squaring_unit.v      # Combinational x² — inferred DSP-free multiplier
+│   ├── accumulator.v        # 16-sample window accumulator, valid-strobe handshake
+│   ├── shift_avg.v          # Divide-by-16 via >>4 — zero LUT synthesis
+│   ├── comparator.v         # Parameterized threshold comparator
+│   └── rms_top.v            # Top-level pipeline integration
 ├── tb/
-│   ├── tb_squaring_unit.v # Unit test: signed multiplication
-│   ├── tb_accumulator.v   # Unit test: window accumulation & valid timing
-│   ├── tb_shift_avg.v     # Unit test: shift correctness
-│   └── tb_rms_top.v       # Integration test: full pipeline
-├── sim/
-│   └── waveform/          # GTKWave VCD dumps
-├── img/                   # Waveform screenshots & synthesis reports
+│   ├── tb_squaring_unit.v   # Signed multiplication correctness
+│   ├── tb_accumulator.v     # Window accumulation + valid timing
+│   ├── tb_shift_avg.v       # Shift correctness
+│   └── tb_rms_top.v         # Full pipeline: physical test vectors
+├── scripts/
+│   └── gen_test_vectors.py  # Python: bearing fault model, Fs=2kHz, ±16g sensor
+├── sim/waveform/            # GTKWave VCD dumps
+├── img/                     # Waveform screenshots + synthesis reports
 └── README.md
 ```
 
 ---
 
-## 10. Tools & Reproducibility
+## 10. Reproducibility
 ```bash
+# Generate physical test vectors
+python3 scripts/gen_test_vectors.py
+
 # Simulate full pipeline
 iverilog -o sim/top_sim \
   src/squaring_unit.v src/accumulator.v \
   src/shift_avg.v src/comparator.v src/rms_top.v \
   tb/tb_rms_top.v
 vvp sim/top_sim
+
+# View waveform
 gtkwave sim/waveform/wave_rms_top.vcd
 
 # Synthesis: Gowin EDA → New Project → Import src/*.v
-# Target: GW1N-1-QFN48 | Constraint: 50MHz
+# Target device: GW1N-1-QFN48 | Timing constraint: 50MHz
 ```
 
-- **Simulation:** Icarus Verilog v11 + GTKWave v3.4  
-- **Synthesis:** Gowin EDA 1.9.9 (GW1N-1)  
-- **HDL:** Verilog-2001  
+**Tools:** Icarus Verilog v11 · GTKWave v3.4 · Gowin EDA 1.9.9 · Python 3.x + NumPy
 
 ---
 
 ## Author
 
 **Hồ Minh Thao**  
-Electronics & Telecommunications Engineering, HCMUT  
-Focus: Digital IC Design · RTL · FPGA · Embedded Systems
+Electronics & Telecommunications Engineering — HCMUT  
+Focus: Digital IC Design · RTL · FPGA · Embedded Systems  
+
+[![Email](https://img.shields.io/badge/Email-hmt.bku2801%40gmail.com-red)]()
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-hominhthao-blue)]()
