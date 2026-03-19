@@ -28,27 +28,53 @@ end
 end
 endtask
 
+// Thêm vào phần khai báo (trước initial begin)
+reg signed [15:0] vec_normal [0:15];
+reg signed [15:0] vec_fault  [0:15];
+
+integer i;
+
 initial begin
-$dumpfile("wave.vcd");
-$dumpvars (0, tb_rms_top);
-rst_n = 0;
-data_in =0; 
-valid_in =0;
-#20 rst_n = 1;
+    $dumpfile("sim/waveform/wave_rms_top.vcd");
+    $dumpvars(0, tb_rms_top);
 
-//test 1
-send_window(100);
-@(posedge valid_out);
-@(posedge clk); 
-$display("test_case1: avg_out=%0d, anomaly_flag=%b (expected 10000 anomaly_flag=0)", avg_out, anomaly_flag);
+    $readmemh("tb/vec_normal.hex", vec_normal);
+    $readmemh("tb/vec_fault.hex",  vec_fault);
 
-//test 2
-send_window(1000);
-@(posedge valid_out);
-@(posedge clk);
-$display ("testcase 2: avg_out=%0d, anomaly_flag=%b (expected 1000000 anomaly_flag=1)", avg_out, anomaly_flag);
+    rst_n = 0; valid_in = 0; data_in = 0;
+    repeat(4) @(posedge clk);
+    rst_n = 1;
+    repeat(2) @(posedge clk);
 
-#500 $finish;
+    // TC1: Normal road vibration (~0.3g RMS, ±16g sensor)
+    for (i = 0; i < 16; i = i + 1) begin
+        @(posedge clk);
+        data_in  = vec_normal[i];
+        valid_in = 1;
+    end
+    // valid_out pulse tại đây — capture ngay
+    @(posedge clk);
+    valid_in = 0;
+    @(posedge clk); // 1 cycle settle
+    $display("TC1 [Normal ~0.3g RMS @ ±16g]: avg_out=%0d LSB2, anomaly=%b (expected anomaly=0)",
+             avg_out, anomaly_flag);
+
+    repeat(4) @(posedge clk);
+
+    // TC2: Bearing fault (~1.5g RMS @ 120Hz)
+    for (i = 0; i < 16; i = i + 1) begin
+        @(posedge clk);
+        data_in  = vec_fault[i];
+        valid_in = 1;
+    end
+    @(posedge clk);
+    valid_in = 0;
+    @(posedge clk);
+    $display("TC2 [Bearing fault ~1.5g RMS @ 120Hz]: avg_out=%0d LSB2, anomaly=%b (expected anomaly=1)",
+             avg_out, anomaly_flag);
+
+    repeat(4) @(posedge clk);
+    $finish;
 end
 
 endmodule 
