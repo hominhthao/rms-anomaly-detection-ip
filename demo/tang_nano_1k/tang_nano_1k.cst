@@ -1,0 +1,25 @@
+# =============================================================
+# tang_nano_1k.cst  —  Physical Constraint File (Gowin)
+# Board  : Sipeed Tang Nano 1K (GW1NZ-LV1)
+# Tool   : Gowin EDA (GVERILOG / GowinSynthesis)
+# =============================================================
+
+# Clock — onboard 27 MHz oscillator
+IO_LOC  "clk"   47;
+IO_PORT "clk"   PULL_MODE=NONE IO_TYPE=LVCMOS33;
+
+# Button — onboard BTN1, active-low with internal pull-up
+IO_LOC  "btn"    13;
+IO_PORT "btn"   PULL_MODE=UP   IO_TYPE=LVCMOS33;
+
+# LED_R — anomaly (active-low)
+IO_LOC  "led_r" 9;
+IO_PORT "led_r" PULL_MODE=NONE IO_TYPE=LVCMOS33 DRIVE=8;
+
+# LED_G — normal (active-low)
+IO_LOC  "led_g" 11;
+IO_PORT "led_g" PULL_MODE=NONE IO_TYPE=LVCMOS33 DRIVE=8;
+
+# UART_TX
+IO_LOC  "uart_tx_pin" 18;
+IO_PORT "uart_tx_pin" PULL_MODE=NONE IO_TYPE=LVCMOS33;
