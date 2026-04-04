@@ -189,7 +189,7 @@ module rms_top #(
 );
 ```
 
-### Synthesis Results (Gowin GW1N-1, Gowin EDA 1.9.9)
+### Synthesis Results (Gowin GW1NZ-LV1QN48C6/I5, Gowin EDA 1.9.12)
 
 | Resource | Used | Available | Utilization |
 |----------|------|-----------|-------------|
@@ -198,6 +198,16 @@ module rms_top #(
 | DSP | 0 | 4 | **0%** |
 
 **Fmax: 120.5 MHz** — constraint 50 MHz, slack +11.7 ns, margin **2.4×**
+
+| Power Metric | Value | Notes |
+|-------------|-------|-------|
+| Dynamic Power | **0.38 mW** | IP logic switching, Gowin Power Analyzer |
+| Quiescent Power | 6.94 mW | FPGA fabric static — independent of design |
+| Total On-chip | **7.32 mW** | @ 27 MHz board clock, 25°C ambient |
+
+> Dynamic power (0.38 mW) is the relevant figure for IP comparison —
+> quiescent power is a fixed FPGA overhead, not a function of this design.
+> On ASIC or custom NPU, static power would drop significantly.
 
 > Critical path: 35-bit carry chain in `accumulator`.  
 > `shift_avg` synthesizes to pure wire routing — **zero LUT, zero delay.**  
@@ -277,7 +287,30 @@ no additional latency beyond the 16-sample window.
 
 ---
 
-## 7. Design Trade-offs
+## 7. Hardware Validation
+
+### Tang Nano 1K (GW1NZ-LV1QN48C6/I5)
+
+IP core synthesized and flashed to physical hardware. Board demo wrapper
+in `demo/tang_nano_1k/` — button-selectable TC1/TC2 with LED indicator.
+
+| Test | Method | Result |
+|------|--------|--------|
+| Bitstream programs cleanly | Gowin Programmer | ✅ |
+| LED_G = NORMAL (TC1, btn released) | Physical observation | ✅ Green LED steady |
+| LED_R = ANOMALY (TC2, hold KEY_A) | Physical observation | ✅ Red LED on hold |
+| Correct transition on button | Release → green, hold → red | ✅ Deterministic |
+| UART streaming @ 115200 | `/dev/tty.usbserial` macOS | ⚠️ Implemented, not yet validated |
+
+> LED behavior confirms the full pipeline — squaring, accumulation,
+> shift-average, and threshold comparison — operates correctly on silicon.
+> UART output is implemented in `demo_top.v` but hardware validation
+> is pending (suspected 1-cycle `valid_out` pulse miss under UART busy —
+> FIFO buffer fix planned).
+
+---
+
+## 8. Design Trade-offs
 
 | Trade-off | Choice | Rationale |
 |-----------|--------|-----------|
@@ -289,7 +322,7 @@ no additional latency beyond the 16-sample window.
 
 ---
 
-## 8. Future Work
+## 9. Future Work
 
 **Phase 2 — Robustness**
 - [ ] Parameterize `WINDOW_LOG` (N = 16/32/64 without RTL edit)
@@ -299,7 +332,7 @@ no additional latency beyond the 16-sample window.
 **Phase 3 — System Integration**
 - [ ] SPI slave interface for direct ADC connection
 - [ ] 3-axis top-level (`rms_top_3axis`) with OR/AND flag logic
-- [ ] UART streaming of `avg_out` for PC-side logging
+- [ ] UART FSM: add output FIFO to handle 1-cycle `valid_out` pulse correctly
 
 **Phase 4 — Signal Intelligence**
 - [ ] Goertzel filter: targeted energy detection at bearing fault frequency
@@ -309,7 +342,7 @@ no additional latency beyond the 16-sample window.
 
 ---
 
-## 9. Project Structure
+## 10. Project Structure
 ```
 rms-anomaly-detection-ip/
 ├── src/
@@ -323,6 +356,11 @@ rms-anomaly-detection-ip/
 │   ├── tb_accumulator.v     # Window accumulation + valid timing
 │   ├── tb_shift_avg.v       # Shift correctness
 │   └── tb_rms_top.v         # Full pipeline: physical test vectors
+├── demo/
+│   └── tang_nano_1k/
+│       ├── demo_top.v       # Board wrapper: button TC1/TC2, LED indicator, UART
+│       ├── uart_tx.v        # 115200 8N1 UART transmitter
+│       └── tang_nano_1k.cst # Pin constraints (GW1NZ-LV1QN48, 27MHz)
 ├── scripts/
 │   └── gen_test_vectors.py  # Python: bearing fault model, Fs=2kHz, ±16g sensor
 ├── sim/waveform/            # GTKWave VCD dumps
@@ -332,7 +370,7 @@ rms-anomaly-detection-ip/
 
 ---
 
-## 10. Reproducibility
+## 11. Reproducibility
 ```bash
 # Generate physical test vectors
 python3 scripts/gen_test_vectors.py
@@ -348,10 +386,13 @@ vvp sim/top_sim
 gtkwave sim/waveform/wave_rms_top.vcd
 
 # Synthesis: Gowin EDA → New Project → Import src/*.v
-# Target device: GW1N-1-QFN48 | Timing constraint: 50MHz
+# Target device: GW1NZ-LV1QN48C6/I5 | Timing constraint: 50MHz
+
+# Hardware demo: flash demo/tang_nano_1k/ via Gowin Programmer
+# KEY_A held → LED_R (anomaly) | KEY_A released → LED_G (normal)
 ```
 
-**Tools:** Icarus Verilog v11 · GTKWave v3.4 · Gowin EDA 1.9.9 · Python 3.x + NumPy
+**Tools:** Icarus Verilog v11 · GTKWave v3.4 · Gowin EDA 1.9.12 · Python 3.x + NumPy
 
 ---
 
