@@ -217,6 +217,8 @@ module rms_top #(
 #### Resource Usage
 ![Resource Usage](img/synthesis_resource.png)
 
+![Power Analysis](img/synthesis_power.png)
+
 #### Timing Report
 ![Timing Report](img/synthesis_timing.png)
 
